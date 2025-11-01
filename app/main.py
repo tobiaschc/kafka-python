@@ -16,29 +16,20 @@ def main():
 
         print(f"Received request: {request}")
 
-        message_size = struct.unpack(">i", request[0:4])[0]
-        print(f"Unpacked message_size: {message_size}")
-
-        request_api_key = struct.unpack(">h", request[4:6])[0]
-        print(f"Unpacked request_api_key: {request_api_key}")
-
-        request_api_version = struct.unpack(">h", request[6:8])[0]
-        print(f"Unpacked request_api_version: {request_api_version}")
-
-        correlation_id = struct.unpack(">i", request[8:12])[0]
-        print(f"Unpacked correlation_id: {correlation_id}")
-
-        # Send back the correlation ID as a 4-byte big-endian integer
-        correlation_id_int32 = (correlation_id).to_bytes(
-            4, byteorder="big", signed=True
+        message_size, request_api_key, request_api_version, correlation_id = (
+            struct.unpack(">ihhi", request[:12])
         )
-        print(f"Sending back correlation_id: {correlation_id_int32}")
 
-        # Create the response
-        # message_size: 4 bytes (just the correlation_id field)
-        # correlation_id: 4 bytes with the value from the request
-        response_message_size = 4
-        response = struct.pack(">ii", response_message_size, correlation_id)
+        if request_api_version > 4:
+            print(f"Unsupported API version: {request_api_version}")
+            error_code = 35  # UnsupportedVersion
+        else:
+            error_code = 0  # No error
+
+        response_message_size = 4 + 2  # correlation_id (4 bytes) + error_code (2 bytes)
+        response = struct.pack(
+            ">iih", response_message_size, correlation_id, error_code
+        )
 
         print(f"Response message: {response}")
 
