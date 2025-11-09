@@ -1,6 +1,8 @@
 import socket
 import struct
 
+from .kafka import Message
+
 
 def main():
     # You can use print statements as follows for debugging,
@@ -16,9 +18,11 @@ def main():
 
         print(f"Received request: {request}")
 
-        message_size, request_api_key, request_api_version, correlation_id = (
-            struct.unpack(">ihhi", request[:12])
-        )
+        message = Message.from_bytes(request)
+        print(f"Parsed message: {message}")
+
+        request_api_version = message.header.request_api_version
+        correlation_id = message.header.correlation_id
 
         if request_api_version > 4:
             print(f"Unsupported API version: {request_api_version}")
