@@ -1,14 +1,14 @@
 import socket
-import struct
 
-from .kafka import Message
+from app.kafka import (
+    ApiVersionResponse,
+    ApiVersionResponseBody,
+    Message,
+    ResponseHeader,
+)
 
 
 def main():
-    # You can use print statements as follows for debugging,
-    # they'll be visible when running tests.
-    print("Logs from your program will appear here!")
-
     server = socket.create_server(("localhost", 9092), reuse_port=True)
     conn, addr = server.accept()
     with conn:
@@ -31,9 +31,14 @@ def main():
             error_code = 0  # No error
 
         response_message_size = 4 + 2  # correlation_id (4 bytes) + error_code (2 bytes)
-        response = struct.pack(
-            ">iih", response_message_size, correlation_id, error_code
+
+        api_version_response = ApiVersionResponse(
+            message_size=response_message_size,
+            header=ResponseHeader(correlation_id=correlation_id),
+            body=ApiVersionResponseBody(error_code=error_code),
         )
+
+        response = api_version_response.to_bytes()
 
         print(f"Response message: {response}")
 
