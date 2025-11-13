@@ -1,6 +1,8 @@
 import socket
 
 from app.kafka import (
+    ApiVersion,
+    ApiVersionArray,
     ApiVersionResponse,
     ApiVersionResponseBody,
     Message,
@@ -30,12 +32,17 @@ def main():
         else:
             error_code = 0  # No error
 
-        response_message_size = 4 + 2  # correlation_id (4 bytes) + error_code (2 bytes)
+        # Create the api version array
+        api_version = ApiVersion(
+            api_key=message.header.request_api_key, min_version=0, max_version=4
+        )
+        api_version_array = ApiVersionArray(api_versions=[api_version])
 
         api_version_response = ApiVersionResponse(
-            message_size=response_message_size,
             header=ResponseHeader(correlation_id=correlation_id),
-            body=ApiVersionResponseBody(error_code=error_code),
+            body=ApiVersionResponseBody(
+                error_code=error_code, api_versions=api_version_array
+            ),
         )
 
         response = api_version_response.to_bytes()

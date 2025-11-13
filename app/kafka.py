@@ -1,5 +1,5 @@
 import struct
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
@@ -36,9 +36,12 @@ class Header:
 
 @dataclass
 class ApiVersionResponse:
-    message_size: int
+    message_size: int = field(init=False)
     header: "ResponseHeader"
     body: "ApiVersionResponseBody"
+
+    def __post_init__(self):
+        self.message_size = self.header.get_size() + self.body.get_size()
 
     def to_bytes(self) -> bytes:
         _message_size = struct.pack(">i", self.message_size)
@@ -57,6 +60,9 @@ class ResponseHeader:
     def to_bytes(self) -> bytes:
         return struct.pack(">i", self.correlation_id)
 
+    def get_size(self) -> int:
+        return len(self.to_bytes())
+
 
 @dataclass
 class ApiVersionResponseBody:
@@ -68,22 +74,28 @@ class ApiVersionResponseBody:
     def to_bytes(self) -> bytes:
         _error_code = struct.pack(">h", self.error_code)
         _api_versions = self.api_versions.to_bytes()
-        _throttle_time_ms = struct.pack(">h", self.throttle_time_ms)
-        _TAG_BUFFER = struct.pack("B", self.TAG_BUFFER)
+        _throttle_time_ms = struct.pack(">i", self.throttle_time_ms)
+        _TAG_BUFFER = struct.pack("b", self.TAG_BUFFER)
 
         return b"".join([_error_code, _api_versions, _throttle_time_ms, _TAG_BUFFER])
+
+    def get_size(self) -> int:
+        return len(self.to_bytes())
 
 
 @dataclass
 class ApiVersionArray:
-    array_length: int
+    array_length: int = field(init=False)
     api_versions: list["ApiVersion"]
 
-    def to_bytes(self) -> bytes:
-        _array_length = struct.pack(">i", self.array_length)
-        _api_versions = self.api_versions.to_bytes()
+    def __post_init__(self):
+        self.array_length = len(self.api_versions) + 1
 
-        return b"".join([_array_length, _api_versions])
+    def to_bytes(self) -> bytes:
+        _array_length = struct.pack("b", self.array_length)
+        _api_versions = [_api_version.to_bytes() for _api_version in self.api_versions]
+
+        return b"".join([_array_length] + _api_versions)
 
 
 @dataclass
@@ -91,7 +103,9 @@ class ApiVersion:
     api_key: int
     min_version: int
     max_version: int
-    TAG_BUFFER: int
+    TAG_BUFFER: int = 0
 
     def to_bytes(self) -> bytes:
-        return struct.pack(">iii", self.api_key, self.min_version, self.max_version)
+        return struct.pack(
+            ">hhhb", self.api_key, self.min_version, self.max_version, self.TAG_BUFFER
+        )
